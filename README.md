@@ -18,21 +18,28 @@ iOS-приложение для отслеживания привычек с д�
 
 ## Скриншоты
 
-### Главный экран и виджет
-
-![Главный экран iPhone с виджетом прогресса привычек](screenshots/widget-home-screen.png)
-
-### Привычки и достижения
-
-![Список привычек и достижения](screenshots/habits-and-achievements.png)
-
-### Статистика
-
-![Экран статистики с графиками](screenshots/statistics.png)
-
-### Добавление привычки
-
-![Форма добавления привычки и выбор иконки](screenshots/add-habit.png)
+<table>
+  <tr>
+    <td align="center">
+      <strong>Главный экран и виджет</strong><br>
+      <img src="screenshots/widget-home-screen.png" alt="Главный экран iPhone с виджетом прогресса привычек" width="220">
+    </td>
+    <td align="center">
+      <strong>Привычки и достижения</strong><br>
+      <img src="screenshots/habits-and-achievements.png" alt="Список привычек и достижения" width="220">
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <strong>Статистика</strong><br>
+      <img src="screenshots/statistics.png" alt="Экран статистики с графиками" width="220">
+    </td>
+    <td align="center">
+      <strong>Добавление привычки</strong><br>
+      <img src="screenshots/add-habit.png" alt="Форма добавления привычки и выбор иконки" width="220">
+    </td>
+  </tr>
+</table>
 
 ## Технологии
 
