@@ -1,26 +1,42 @@
 import Combine
 import Foundation
 
+struct HabitDailyStatistic: Codable, Identifiable {
+    var day: Date
+    var completedCount: Int
+    var totalCount: Int
+
+    var id: Date { day }
+
+    var completionRate: Double {
+        guard totalCount > 0 else { return 0 }
+        return Double(completedCount) / Double(totalCount)
+    }
+}
+
 @MainActor
 final class HabitStore: ObservableObject {
     @Published private(set) var habits: [Habit]
     @Published private(set) var achievementProgress: HabitAchievementProgress
+    @Published private(set) var dailyStatistics: [HabitDailyStatistic]
 
     private let defaults: UserDefaults
     private let habitsKey = "habits"
     private let completionDayKey = "habitsCompletionDay"
     private let achievementProgressKey = "habitAchievementProgress"
+    private let dailyStatisticsKey = "habitDailyStatistics"
 
     private static let defaultHabits = [
-        Habit(title: "Выпить воды"),
-        Habit(title: "Сделать зарядку"),
-        Habit(title: "Прочитать книгу")
+        Habit(title: "Выпить воды", iconName: "drop.fill"),
+        Habit(title: "Сделать зарядку", iconName: "figure.run"),
+        Habit(title: "Прочитать книгу", iconName: "book.fill")
     ]
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         self.habits = Self.loadHabits(from: defaults)
         self.achievementProgress = Self.loadAchievementProgress(from: defaults)
+        self.dailyStatistics = Self.loadDailyStatistics(from: defaults)
         prepareHabitsForToday()
     }
 
@@ -35,6 +51,26 @@ final class HabitStore: ObservableObject {
     var completionProgress: Double {
         guard !habits.isEmpty else { return 0 }
         return Double(completedHabitsCount) / Double(habits.count)
+    }
+
+    var lastSevenDaysStatistics: [HabitDailyStatistic] {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let statisticsByDay = Dictionary(
+            dailyStatistics.map { (calendar.startOfDay(for: $0.day), $0) },
+            uniquingKeysWith: { _, latest in latest }
+        )
+
+        return (0..<7).compactMap { daysAgo in
+            guard let day = calendar.date(byAdding: .day, value: daysAgo - 6, to: today) else {
+                return nil
+            }
+            return statisticsByDay[day] ?? HabitDailyStatistic(
+                day: day,
+                completedCount: 0,
+                totalCount: habits.count
+            )
+        }
     }
 
     var currentStreak: Int {
@@ -59,9 +95,13 @@ final class HabitStore: ObservableObject {
         let today = Self.dayKey(for: Date())
         guard let storedDay = defaults.string(forKey: completionDayKey) else {
             defaults.set(today, forKey: completionDayKey)
+            recordTodayStatistics()
             return
         }
-        guard storedDay != today else { return }
+        guard storedDay != today else {
+            recordTodayStatistics()
+            return
+        }
 
         habits = habits.map { habit in
             var updatedHabit = habit
@@ -70,13 +110,15 @@ final class HabitStore: ObservableObject {
         }
         saveHabits()
         defaults.set(today, forKey: completionDayKey)
+        recordTodayStatistics()
     }
 
-    func addHabit(title: String) {
+    func addHabit(title: String, iconName: String = HabitIcon.defaultName) {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else { return }
-        habits.append(Habit(title: trimmedTitle))
+        habits.append(Habit(title: trimmedTitle, iconName: iconName))
         saveHabits()
+        recordTodayStatistics()
     }
 
     func toggleHabit(id: Habit.ID, isCompleted: Bool) -> Bool {
@@ -86,6 +128,7 @@ final class HabitStore: ObservableObject {
         let hadCompletedGoal = !habits.isEmpty && habits.allSatisfy(\.isCompleted)
         habits[index].isCompleted = isCompleted
         saveHabits()
+        recordTodayStatistics()
 
         if isCompleted {
             recordCompletion(isPerfect: habits.allSatisfy(\.isCompleted))
@@ -101,6 +144,7 @@ final class HabitStore: ObservableObject {
             habits.remove(at: index)
         }
         saveHabits()
+        recordTodayStatistics()
     }
 
     func isAchievementUnlocked(_ achievement: HabitAchievement) -> Bool {
@@ -164,6 +208,43 @@ final class HabitStore: ObservableObject {
         }
     }
 
+    private func recordTodayStatistics() {
+        let today = Calendar.current.startOfDay(for: Date())
+        if let index = dailyStatistics.firstIndex(where: {
+            Calendar.current.isDate($0.day, inSameDayAs: today)
+        }) {
+            dailyStatistics[index].completedCount = completedHabitsCount
+            dailyStatistics[index].totalCount = habits.count
+        } else {
+            dailyStatistics.append(
+                HabitDailyStatistic(
+                    day: today,
+                    completedCount: completedHabitsCount,
+                    totalCount: habits.count
+                )
+            )
+        }
+
+        dailyStatistics.sort { $0.day < $1.day }
+        dailyStatistics = Array(dailyStatistics.suffix(90))
+        saveDailyStatistics()
+        HabitWidgetData.publish(
+            completedCount: completedHabitsCount,
+            totalCount: habits.count
+        )
+    }
+
+    private func saveDailyStatistics() {
+        do {
+            defaults.set(
+                try JSONEncoder().encode(dailyStatistics),
+                forKey: dailyStatisticsKey
+            )
+        } catch {
+            assertionFailure("Не удалось сохранить статистику: \(error)")
+        }
+    }
+
     private static func loadHabits(from defaults: UserDefaults) -> [Habit] {
         guard let data = defaults.data(forKey: "habits") else {
             return defaultHabits
@@ -187,6 +268,19 @@ final class HabitStore: ObservableObject {
         } catch {
             assertionFailure("Не удалось загрузить достижения: \(error)")
             return HabitAchievementProgress()
+        }
+    }
+
+    private static func loadDailyStatistics(from defaults: UserDefaults) -> [HabitDailyStatistic] {
+        guard let data = defaults.data(forKey: "habitDailyStatistics") else {
+            return []
+        }
+
+        do {
+            return try JSONDecoder().decode([HabitDailyStatistic].self, from: data)
+        } catch {
+            assertionFailure("Не удалось загрузить статистику: \(error)")
+            return []
         }
     }
 

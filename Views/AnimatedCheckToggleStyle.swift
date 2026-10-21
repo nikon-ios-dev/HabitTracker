@@ -15,7 +15,7 @@ struct AnimatedCheckToggleStyle: ToggleStyle {
                 ZStack {
                     Circle()
                         .strokeBorder(
-                            configuration.isOn ? Color.green : Color.gray.opacity(0.5),
+                            configuration.isOn ? Color.green : Color.secondary.opacity(0.5),
                             lineWidth: 2
                         )
                         .background(Circle().fill(configuration.isOn ? Color.green : Color.clear))

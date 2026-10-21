@@ -12,7 +12,7 @@ struct StreakBanner: View {
         HStack(spacing: 16) {
             Image(systemName: isBroken ? "flame" : "flame.fill")
                 .font(.system(size: 40, weight: .semibold))
-                .foregroundStyle(isBroken ? Color.gray : Color.orange)
+                .foregroundStyle(isBroken ? Color.secondary : Color.orange)
                 .symbolEffect(.pulse, options: .repeating, isActive: streak > 0 && !isBroken)
                 .scaleEffect(isBroken ? 0.72 : 1)
                 .rotationEffect(.degrees(isBroken ? -18 : 0))
@@ -21,7 +21,7 @@ struct StreakBanner: View {
                     if isBroken {
                         Image(systemName: "cloud.fill")
                             .font(.system(size: 17))
-                            .foregroundStyle(.gray.opacity(0.75))
+                            .foregroundStyle(.secondary.opacity(0.75))
                             .offset(x: 9, y: -8)
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
@@ -55,7 +55,7 @@ struct StreakBanner: View {
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            (isBroken ? Color.gray : Color.orange)
+            (isBroken ? Color.secondary : Color.orange)
                 .opacity(0.12),
             in: RoundedRectangle(cornerRadius: 18)
         )

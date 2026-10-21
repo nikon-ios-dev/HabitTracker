@@ -13,12 +13,14 @@ struct HabitRow: View {
             )
         ) {
             HStack(spacing: 10) {
-                Circle()
-                    .fill(color)
-                    .frame(width: 10, height: 10)
+                Image(systemName: habit.iconName)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(color)
+                    .frame(width: 30, height: 30)
+                    .background(color.opacity(0.12), in: Circle())
 
                 Text(habit.title)
-                    .foregroundStyle(habit.isCompleted ? Color.gray : color)
+                    .foregroundStyle(habit.isCompleted ? Color.secondary : color)
                     .strikethrough(habit.isCompleted)
             }
         }

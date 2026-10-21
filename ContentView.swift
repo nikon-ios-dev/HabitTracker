@@ -1,8 +1,39 @@
 import SwiftUI
 
+private enum AppearanceMode: String, CaseIterable {
+    case system
+    case light
+    case dark
+
+    var title: String {
+        switch self {
+        case .system: "Как в системе"
+        case .light: "Светлая"
+        case .dark: "Тёмная"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: nil
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .system: "circle.lefthalf.filled"
+        case .light: "sun.max"
+        case .dark: "moon"
+        }
+    }
+}
+
 struct ContentView: View {
     @StateObject private var store = HabitStore()
     @StateObject private var reminderScheduler = HabitReminderScheduler()
+    @AppStorage("appearanceMode") private var appearanceModeRawValue = AppearanceMode.system.rawValue
     @State private var isShowingAddHabit = false
     @State private var isShowingConfetti = false
     @State private var confettiAnimationID = UUID()
@@ -10,6 +41,10 @@ struct ContentView: View {
     private let habitColors: [Color] = [
         .blue, .green, .orange, .purple, .pink, .teal, .indigo
     ]
+
+    private var appearanceMode: AppearanceMode {
+        AppearanceMode(rawValue: appearanceModeRawValue) ?? .system
+    }
 
     var body: some View {
         NavigationStack {
@@ -47,6 +82,9 @@ struct ContentView: View {
                                 ) {
                                     store.toggleHabit(id: habit.id, isCompleted: isCompleted)
                                 }
+                                if isCompleted {
+                                    AudioFeedback.playCompletionSound()
+                                }
                                 if completedGoal {
                                     showConfetti()
                                 }
@@ -70,16 +108,44 @@ struct ContentView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        isShowingAddHabit = true
-                    } label: {
-                        Image(systemName: "plus")
+                    HStack {
+                        Menu {
+                            ForEach(AppearanceMode.allCases, id: \.self) { mode in
+                                Button {
+                                    appearanceModeRawValue = mode.rawValue
+                                } label: {
+                                    if appearanceMode == mode {
+                                        Label(mode.title, systemImage: "checkmark")
+                                    } else {
+                                        Text(mode.title)
+                                    }
+                                }
+                            }
+                        } label: {
+                            Image(systemName: appearanceMode.symbol)
+                        }
+                        .accessibilityLabel("Тема оформления: \(appearanceMode.title)")
+
+                        NavigationLink {
+                            StatisticsView(store: store)
+                        } label: {
+                            Image(systemName: "chart.bar.xaxis")
+                        }
+                        .accessibilityLabel("Статистика")
+
+                        Button {
+                            isShowingAddHabit = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel("Добавить привычку")
                     }
-                    .accessibilityLabel("Добавить привычку")
                 }
             }
             .sheet(isPresented: $isShowingAddHabit) {
-                AddHabitSheet(onSave: store.addHabit)
+                AddHabitSheet { title, iconName in
+                    store.addHabit(title: title, iconName: iconName)
+                }
             }
             .overlay {
                 if isShowingConfetti {
@@ -103,6 +169,7 @@ struct ContentView: View {
                 Text(reminderScheduler.alertMessage ?? "")
             }
         }
+        .preferredColorScheme(appearanceMode.colorScheme)
     }
 
     private func updateReminder() async {
